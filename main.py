@@ -1,9 +1,9 @@
 from expression import Expression
 
 if __name__ == "__main__":
-    P = Expression("p>q+r=s^~p>r")
+    P = Expression("pqr p ^ ~(q > r)")
     P.printLogicTable()
-    P.printLogicTable({"r": True})
+    # P.printLogicTable({"r": True})
     # Q = LogicTable("(p^q)+(p^r")
     # Q.printTable()
     # print(LogicTable.isEquivalent(P, Q))

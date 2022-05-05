@@ -28,25 +28,25 @@ class Expression:
         # print(self._used_characters)
         # print(self._priorities)
 
-    def _getNextIndex(self, actual_index, element):
+    def _getNextIndex(self, element_index, element_priority):
         # a regra para achar o próximo index para fazer a operação é simples, o atomo ao lado, caso não tenha
         # sido utilizado ou o resultado da maior prioridade e que seja menor que a prioridade atual sem descer
-        # um nivel de parenteses o index é calculado para cada lado
+        # um nivel de parenteses, o index é calculado para cada lado
         next_right = -1
-        for index_near in range(actual_index, len(self._priorities)):
-            if self._parenthesis_map[index_near] < self._parenthesis_map[actual_index]:
+        for index_near in range(element_index, len(self._priorities)):
+            if self._parenthesis_map[index_near] < self._parenthesis_map[element_index]:
                 break
             next_priority = self._priorities[index_near]
-            if element > next_priority > 0 and self._used_characters[index_near] == 0:
+            if element_priority > next_priority > 0 and self._used_characters[index_near] == 0:
                 next_right = index_near
                 break
 
         next_left = -1
-        for index_near in range(actual_index, -1, -1):
-            if self._parenthesis_map[index_near] < self._parenthesis_map[actual_index]:
+        for index_near in range(element_index, -1, -1):
+            if self._parenthesis_map[index_near] < self._parenthesis_map[element_index]:
                 break
             next_priority = self._priorities[index_near]
-            if element > next_priority > 0 and self._used_characters[index_near] == 0:
+            if element_priority > next_priority > 0 and self._used_characters[index_near] == 0:
                 next_left = index_near
                 break
 
@@ -65,11 +65,11 @@ class Expression:
         atoms = list(dict.fromkeys(atoms))
         atoms.sort()
 
-        # cada letra só pode ser usada uma vez por operação, essa lista faz o controle
+        # cada atomo só pode ter seu valor utilzado uma unica vez, essa lista faz o controle
         self._used_characters = [0 if letter not in "()" else 0 for letter in self._expression]
 
         # calcula o nivel maximo de parenteses (maior prioridade) e cria um mapa para ajudar
-        # a localizar qual o proximo termo
+        # a localizar qual o proximo atomo da operação
         self._parenthesis_map = list()
         max_parenthesis = 0
         level = 0
@@ -82,21 +82,25 @@ class Expression:
             if level > max_parenthesis:
                 max_parenthesis = level
 
+        # Curiosamente, neste programa é falado sobre "maior" prioridade, entretanto, é armazenado o menor valor
+        # para indicar maior prioridade, pois, prioridade descreve bem o significado, mas para a lógica foi
+        # armazenado a sua ordem
+
         # calcula as prioridades das operações, começando do maior nivel de parenteses até o menor
         # print(f"parenthesis nivel: {maxParenthesis}")
         self._priorities = [0 for _ in range(len(self._expression))]
         self._table = [[" " for _ in range(len(self._expression))] for _ in range(2 ** len(atoms))]
-        priority = 2
+        maxPriority = 2
         for parenthesis_level in range(max_parenthesis + 1, -1, -1):
             for symbol in symbols:
                 for index, character in enumerate(self._expression):
                     if character.isalpha() or character.isdecimal():
                         self._priorities[index] = 1
-                    # primeiro atribui a prioridade aos simbolos do nivel atual de parenteses,
+                    # primeiro atribui a prioridade aos simbolos com maior prioridade do nivel atual de parenteses,
                     # da esquerda para a direita
                     if character == symbol and self._parenthesis_map[index] == parenthesis_level:
-                        self._priorities[index] = priority
-                        priority += 1
+                        self._priorities[index] = maxPriority
+                        maxPriority += 1
 
         # print([str(p) for p in priorities])
         # inicializa todas as colunas com os atomos lógicos
@@ -112,9 +116,10 @@ class Expression:
                 if character.isdecimal():
                     self._table[line][column] = character
 
-        # começando da prioridade 2, ele vai indo para cada simbolo e realiza a sua operação
-        for element in range(2, priority):
-            index = self._priorities.index(element)
+        # começando do segundo termo (maior prioridade, menor valor)
+        # ele vai indo para cada simbolo seguindo a prioridade e realiza a sua operação
+        for elementPriority in range(2, maxPriority):
+            index = self._priorities.index(elementPriority)
             symbol = self._expression[index]
             if symbol == "~":
                 if self._expression[index + 1] != "(":
@@ -125,25 +130,25 @@ class Expression:
                         else:
                             self._table[line][index] = "F"
                 else:
-                    index_next = -1
-                    big = 0
+                    index_operandElement = -1
+                    highestPriority = 0
                     for i in range(index, len(self._priorities)):
                         nextPriority = self._priorities[i]
                         if self._parenthesis_map[i] < self._parenthesis_map[index]:
                             break
-                        if element > nextPriority > big:
-                            index_next = i
-                            big = nextPriority
+                        if elementPriority > nextPriority > highestPriority:
+                            index_operandElement = i
+                            highestPriority = nextPriority
 
-                    self._used_characters[index_next] += 1
+                    self._used_characters[index_operandElement] += 1
                     for line in range(2 ** len(atoms)):
-                        if self._table[line][index_next] == "F":
+                        if self._table[line][index_operandElement] == "F":
                             self._table[line][index] = "V"
                         else:
                             self._table[line][index] = "F"
 
             if symbol == "^":
-                nextLeft, nextRight = self._getNextIndex(index, element)
+                nextLeft, nextRight = self._getNextIndex(index, elementPriority)
 
                 self._used_characters[nextLeft] += 1
                 self._used_characters[nextRight] += 1
@@ -154,7 +159,7 @@ class Expression:
                         self._table[line][index] = "F"
 
             if symbol == "+":
-                nextLeft, nextRight = self._getNextIndex(index, element)
+                nextLeft, nextRight = self._getNextIndex(index, elementPriority)
 
                 self._used_characters[nextLeft] += 1
                 self._used_characters[nextRight] += 1
@@ -165,7 +170,7 @@ class Expression:
                         self._table[line][index] = "F"
 
             if symbol == "|":
-                nextLeft, nextRight = self._getNextIndex(index, element)
+                nextLeft, nextRight = self._getNextIndex(index, elementPriority)
 
                 self._used_characters[nextLeft] += 1
                 self._used_characters[nextRight] += 1
@@ -177,7 +182,7 @@ class Expression:
                         self._table[line][index] = "F"
 
             if symbol == ">":
-                nextLeft, nextRight = self._getNextIndex(index, element)
+                nextLeft, nextRight = self._getNextIndex(index, elementPriority)
 
                 self._used_characters[nextLeft] += 1
                 self._used_characters[nextRight] += 1
@@ -188,7 +193,7 @@ class Expression:
                         self._table[line][index] = "F"
 
             if symbol == "=":
-                nextLeft, nextRight = self._getNextIndex(index, element)
+                nextLeft, nextRight = self._getNextIndex(index, elementPriority)
 
                 self._used_characters[nextLeft] += 1
                 self._used_characters[nextRight] += 1
